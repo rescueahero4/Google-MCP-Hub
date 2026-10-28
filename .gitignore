@@ -1,0 +1,34 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.log
+
+# Local data: connected accounts and their refresh tokens
+.data/
+
+# Secrets and environment files (keep the committed examples)
+.env
+.env.*
+!.env.example
+deploy.env
+deploy.env.*
+!deploy.env.example
+
+# Credential files that Google Cloud tools download
+client_secret*.json
+credentials*.json
+service-account*.json
+*-key.json
+*.pem
+*.key
+*.p12
+
+# Editor and OS clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Private planning documents
+docs/

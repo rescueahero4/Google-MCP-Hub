@@ -1,0 +1,21 @@
+# Only what the Dockerfile needs is uploaded to Cloud Build.
+node_modules/
+dist/
+coverage/
+.data/
+.env
+.env.*
+deploy.env
+deploy.env.*
+client_secret*.json
+credentials*.json
+service-account*.json
+*-key.json
+*.pem
+*.key
+*.p12
+docs/
+guides/
+README.md
+scripts/
+.git/
