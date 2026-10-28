@@ -8,6 +8,7 @@
 [![Model Context Protocol](https://img.shields.io/badge/protocol-MCP-d77757?style=for-the-badge)](https://modelcontextprotocol.io)
 [![Self-hosted](https://img.shields.io/badge/hosting-self--hosted-2e7d32?style=for-the-badge)](#how-it-stays-private)
 [![Cost](https://img.shields.io/badge/idle_cost-~%240-6b4fc8?style=for-the-badge)](#what-it-costs)
+[![License: MIT](https://img.shields.io/badge/license-MIT-555?style=for-the-badge)](LICENSE)
 
 </div>
 
@@ -47,13 +48,14 @@ flowchart LR
 
 - [What you need](#what-you-need)
 - [Setup at a glance](#setup-at-a-glance)
+- [Let your AI agent set it up](#let-your-ai-agent-set-it-up): hand the work to Claude Code or a similar agent
 - [Deploy](#deploy): the commands, for people comfortable with a terminal
 - [Connect your accounts and Claude](#connect-your-accounts-and-claude)
 - [Tools Claude gets](#tools-claude-gets)
 - [How it stays private](#how-it-stays-private)
 - [What it costs](#what-it-costs)
 - [Run it locally](#run-it-locally)
-- [Reference](#reference): settings, project layout, troubleshooting
+- [Reference](#reference): settings, project layout, notes for AI agents, troubleshooting
 
 > 🆕 **New to Google Cloud?** Follow the **[step-by-step setup guide](guides/getting-started.md)**. It assumes no experience and takes about 30 minutes.
 
@@ -85,6 +87,53 @@ The Google accounts you connect can be any mix: personal Gmail, Google Workspace
 | 7 | Add the hub to Claude as a custom connector | 1 min |
 
 👉 Every click is spelled out in the **[step-by-step guide](guides/getting-started.md)**.
+
+---
+
+# Let your AI agent set it up
+
+An AI coding agent that can run terminal commands, such as [Claude Code](https://claude.com/claude-code), can do most of the setup for you. You only do the parts that need your browser.
+
+## What your computer needs
+
+| Tool | What it's for | Check it's installed | Get it |
+| --- | --- | --- | --- |
+| **Claude Code** (or another agent with a terminal) | Runs the setup for you | `claude --version` | [claude.com/claude-code](https://claude.com/claude-code) |
+| **Git** | Downloads the code | `git --version` | [git-scm.com/downloads](https://git-scm.com/downloads) |
+| **Google Cloud CLI** (`gcloud`) | Talks to your Google Cloud account | `gcloud --version` | [cloud.google.com/sdk/docs/install](https://cloud.google.com/sdk/docs/install) |
+| **Bash** | Runs the deploy script | `bash --version` | Built into macOS and Linux. On Windows it comes with Git ("Git Bash") |
+
+You **don't** need Docker or Node.js. Google Cloud builds the hub for you. Node.js 22+ is only needed to [run it locally](#run-it-locally).
+
+Your agent can check these and install what's missing.
+
+## What only you can do
+
+The agent will stop and ask you for these, because each one needs your browser or your approval:
+
+| When | What you do |
+| --- | --- |
+| Start | Sign `gcloud` in to your Google account: type `! gcloud auth login` in Claude Code, or run `gcloud auth login` in a terminal |
+| Start | Make sure your Google Cloud account has billing turned on ([step 2 of the guide](guides/getting-started.md#2-create-a-google-cloud-account)) |
+| Middle | Create the Google sign-in client in the Cloud Console. Google has no command for this ([step 7 of the guide](guides/getting-started.md#7-set-up-google-sign-in)) |
+| Middle | Allow steps that create cloud resources or make the hub reachable from the internet, when your agent asks permission |
+| End | Open your hub, sign in and connect your Google accounts |
+| End | Add the hub to Claude as a custom connector and press **Approve** |
+
+## What to ask
+
+Copy this into Claude Code, filling in the blanks:
+
+```text
+Set up Google MCP Hub for me from https://github.com/rescueahero4/google-mcp-hub.
+Follow its README ("Notes for AI agents") and guides/getting-started.md.
+My owner email is: ____________
+My region is: ____________ (for example us-central1 or asia-northeast1)
+Use a new Google Cloud project called: ____________ (or reuse one I name)
+Check what I need installed first, and tell me exactly what to click whenever you need me.
+```
+
+> 🔒 **Stay in control.** The agent works in your own Google Cloud account with your permission. It never needs your Google password, and your client secret stays in `deploy.env` on your computer, which git ignores.
 
 ---
 
@@ -378,6 +427,26 @@ Two runtime dependencies: [`@modelcontextprotocol/sdk`](https://github.com/model
 </details>
 
 <details>
+<summary>Notes for AI agents</summary>
+
+Follow these when a user asks you to set up or update the hub.
+
+1. **Check the tools:** `git --version`, `gcloud --version`, `bash --version`. Help the user install anything missing. Docker and Node.js are not needed to deploy.
+2. **Check sign-in:** `gcloud auth list`. If no account is active, ask the user to run `gcloud auth login` themselves. It opens a browser, so you can't do it.
+3. **Pick the project:** create one with `gcloud projects create <id>` (the ID must not contain "google") and link billing with `gcloud billing projects link <id> --billing-account <account>`, or use one the user names. If creation fails on quota, offer to reuse an existing project.
+4. **Write `deploy.env`** from `deploy.env.example`: `PROJECT_ID`, `REGION`, `OWNER_EMAILS`. Never commit it, print the client secret, or paste it into chat.
+5. **First run:** `./scripts/deploy.sh --yes`. With no OAuth client set, it enables APIs, prints the redirect URI and exits.
+6. **Hand over the OAuth client step:** walk the user through [guide step 7](guides/getting-started.md#7-set-up-google-sign-in) with the printed redirect URI. Ask them to put the client ID and secret into `deploy.env` themselves, or to give you the downloaded JSON file so you can copy the values without showing them.
+7. **Deploy:** `./scripts/deploy.sh --yes`. The build takes 3–5 minutes, so run it in the background if you can. The script grants a project IAM role and deploys a public Cloud Run service, so expect to need the user's permission.
+8. **If the build fails** reading sources (`storage.objects.get`), re-run the script; it sets up the `hub-builder` service account.
+9. **Hand over the browser steps:** opening the hub URL, connecting accounts, and adding `<hub URL>/mcp` as a custom connector in Claude, then pressing **Approve**.
+10. **Verify:** `curl <hub URL>/health` returns `{"ok":true}`. For errors, read the logs: `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="google-mcp-hub" AND severity>=ERROR' --project <id> --limit 20 --freshness 1h`.
+
+To update an existing hub: `git pull`, then `./scripts/deploy.sh --yes`.
+
+</details>
+
+<details>
 <summary>Troubleshooting</summary>
 
 | Problem | Fix |
@@ -399,4 +468,4 @@ Two runtime dependencies: [`@modelcontextprotocol/sdk`](https://github.com/model
 
 ## License
 
-[Apache-2.0](LICENSE)
+[MIT](LICENSE). Free to use, change and share.

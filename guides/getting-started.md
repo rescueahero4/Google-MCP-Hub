@@ -6,6 +6,8 @@ This guide takes you from nothing to Claude using all your Google accounts. You 
 
 [← Back to the README](../README.md)
 
+> 🤖 **Have Claude Code or another AI agent?** It can do most of these steps for you. See [Let your AI agent set it up](../README.md#let-your-ai-agent-set-it-up).
+
 ---
 
 ## Contents
